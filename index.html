@@ -1,0 +1,92 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Administrador - Editar Rutas</title>
+
+    <!-- Leaflet y Leaflet Draw (para edición de rutas) -->
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.7.1/dist/leaflet.css" />
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet.draw/1.0.4/leaflet.draw.css" />
+
+    <script src="https://unpkg.com/leaflet@1.7.1/dist/leaflet.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet.draw/1.0.4/leaflet.draw.js"></script>
+
+    <style>
+        body { margin: 0; font-family: Arial, sans-serif; }
+        #map { height: 100vh; }
+        #controls {
+            position: absolute;
+            top: 10px;
+            left: 10px;
+            background: white;
+            padding: 10px;
+            z-index: 1000;
+            border-radius: 5px;
+            box-shadow: 0px 0px 10px rgba(0, 0, 0, 0.3);
+        }
+    </style>
+</head>
+<body>
+
+    <div id="controls">
+        <label>Nombre de la Ruta:</label>
+        <input type="text" id="routeName" placeholder="Ej. Ruta Centro">
+        <label>Color de la Ruta:</label>
+        <input type="color" id="routeColor" value="#ff0000">
+        <button id="saveBtn">Guardar Rutas</button>
+        <button id="clearBtn">Borrar Rutas</button>
+    </div>
+
+    <div id="map"></div>
+
+    <script>
+        var map = L.map('map').setView([25.8797, -97.5046], 13);
+
+        L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+            attribution: '© OpenStreetMap contributors'
+        }).addTo(map);
+
+        var drawnItems = new L.FeatureGroup();
+        map.addLayer(drawnItems);
+
+        var drawControl = new L.Control.Draw({
+            edit: { featureGroup: drawnItems },
+            draw: { polyline: true, polygon: false, circle: false, marker: false, rectangle: false }
+        });
+        map.addControl(drawControl);
+
+        map.on(L.Draw.Event.CREATED, function (e) {
+            var layer = e.layer;
+            var color = document.getElementById("routeColor").value;
+            var name = document.getElementById("routeName").value.trim() || "Ruta sin nombre";
+
+            layer.setStyle({ color: color, weight: 5 });
+            layer.bindPopup(name);
+            drawnItems.addLayer(layer);
+        });
+
+        document.getElementById("saveBtn").addEventListener("click", function () {
+            var data = [];
+            drawnItems.eachLayer(function (layer) {
+                data.push({
+                    name: layer.getPopup().getContent(),
+                    color: layer.options.color,
+                    coordinates: layer.getLatLngs()
+                });
+            });
+            localStorage.setItem("rutasPeceras", JSON.stringify(data));
+            alert("Rutas guardadas correctamente.");
+        });
+
+        document.getElementById("clearBtn").addEventListener("click", function () {
+            localStorage.removeItem("rutasPeceras");
+            drawnItems.clearLayers();
+            alert("Todas las rutas han sido eliminadas.");
+        });
+
+    </script>
+
+</body>
+</html>
+
