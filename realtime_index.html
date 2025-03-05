@@ -1,0 +1,73 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>En Tiempo Real - Simulación de Rutas y Peceras</title>
+  <link rel="stylesheet" href="https://unpkg.com/leaflet/dist/leaflet.css" />
+  <style>
+    html, body {
+      margin: 0;
+      padding: 0;
+      height: 100%;
+    }
+    #map {
+      height: 100%;
+      width: 100%;
+    }
+  </style>
+</head>
+<body>
+  <div id="map"></div>
+  
+  <script src="https://unpkg.com/leaflet/dist/leaflet.js"></script>
+  <script>
+    // Inicializar el mapa centrado en Matamoros, Tamaulipas
+    var map = L.map('map').setView([25.8797, -97.5046], 13);
+    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+      attribution: '© OpenStreetMap contributors'
+    }).addTo(map);
+
+    // Cargar rutas guardadas desde localStorage
+    var rutasGuardadas = JSON.parse(localStorage.getItem("rutasPecerasAdmin2")) || [];
+
+    // Para cada ruta guardada, dibujar la polyline y simular el movimiento
+    rutasGuardadas.forEach(function(ruta) {
+      // Dibujar la ruta con el color especificado
+      var polyline = L.polyline(ruta.coordinates, { color: ruta.color, weight: 5 }).addTo(map);
+      polyline.bindPopup(📍 <b>Ruta:</b> ${ruta.name}<br>🚌 <b>Peceras:</b> ${ruta.peceras.map(p => p.name).join(", ")});
+
+      // Obtener las coordenadas de la ruta
+      var path = polyline.getLatLngs();
+      
+      // Limitar la simulación a máximo 4 peceras por ruta
+      var pecerasSimuladas = ruta.peceras.slice(0, 4);
+      
+      pecerasSimuladas.forEach(function(pecera, idx) {
+        // Definir el ícono de autobús
+        var busIcon = L.icon({
+          iconUrl: 'https://cdn-icons-png.flaticon.com/512/2944/2944687.png', // URL del icono de autobús
+          iconSize: [40, 40],
+          iconAnchor: [20, 40]
+        });
+
+        // Distribuir los puntos de inicio a lo largo del camino
+        var startIndex = Math.floor(idx * (path.length / pecerasSimuladas.length));
+        var marker = L.marker(path[startIndex], { icon: busIcon }).addTo(map);
+        marker.bindPopup(🚌 <b>Pecera:</b> ${pecera.name}<br>👨‍✈️ <b>Conductor:</b> ${pecera.conductor});
+
+        // Simular el movimiento: cada 2 segundos se actualiza la posición
+        (function(marker, currentIndex) {
+          setInterval(function() {
+            marker.setLatLng(path[currentIndex]);
+            currentIndex++;
+            if (currentIndex >= path.length) {
+              currentIndex = 0;
+            }
+          }, 2000);
+        })(marker, startIndex);
+      });
+    });
+  </script>
+</body>
+</html>

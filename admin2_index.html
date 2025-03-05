@@ -1,0 +1,248 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Administrador2 - Trazar Rutas y Peceras</title>
+  <!-- Leaflet y Leaflet Draw -->
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.7.1/dist/leaflet.css" />
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet.draw/1.0.4/leaflet.draw.css" />
+  <style>
+    body { margin: 0; font-family: Arial, sans-serif; }
+    #map { height: 100vh; }
+    #controls {
+      position: absolute;
+      top: 10px;
+      left: 10px;
+      background: white;
+      padding: 15px;
+      z-index: 1000;
+      border-radius: 10px;
+      box-shadow: 0px 0px 10px rgba(0, 0, 0, 0.3);
+      max-width: 300px;
+    }
+    #controls label { display: block; margin: 5px 0; font-weight: bold; }
+    #controls input, 
+    #controls select,
+    #controls button {
+      width: 100%;
+      padding: 10px;
+      margin: 5px 0;
+      border: 1px solid #ccc;
+      border-radius: 5px;
+    }
+    #controls button {
+      background-color: #004AAD;
+      color: white;
+      border: none;
+      cursor: pointer;
+      transition: background-color 0.3s ease;
+    }
+    #controls button:hover { background-color: #002D6B; }
+    hr { margin: 10px 0; }
+  </style>
+</head>
+<body>
+  <div id="controls">
+    <!-- Seleccionar ruta existente o crear nueva -->
+    <label>Seleccionar Ruta:</label>
+    <select id="routeSelector">
+      <option value="new">-- Nueva Ruta --</option>
+    </select>
+    <!-- Datos de la ruta (se usan al crear una ruta nueva) -->
+    <label>Nombre de la Ruta:</label>
+    <input type="text" id="routeName" placeholder="Ej. Ruta Centro">
+    <label>Color de la Ruta:</label>
+    <input type="color" id="routeColor" value="#ff0000">
+    <hr>
+    <!-- Datos de la pecera (se podrán agregar a la ruta seleccionada) -->
+    <label>Nombre de la Pecera:</label>
+    <input type="text" id="peceraName" placeholder="Ej. Pecera 1">
+    <label>Nombre del Conductor:</label>
+    <input type="text" id="conductorName" placeholder="Ej. Juan Pérez">
+    <button id="addPeceraBtn">Agregar Pecera a Ruta Seleccionada</button>
+    <hr>
+    <button id="saveBtn">Guardar Ruta Nueva / Actualizar Ruta</button>
+    <button id="clearBtn">Borrar Todas las Rutas</button>
+  </div>
+  <div id="map"></div>
+
+  <!-- Scripts de Leaflet y Leaflet Draw -->
+  <script src="https://unpkg.com/leaflet@1.7.1/dist/leaflet.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet.draw/1.0.4/leaflet.draw.js"></script>
+  <script>
+    // Inicializar el mapa centrado en Matamoros, Tamaulipas
+    var map = L.map('map').setView([25.8797, -97.5046], 13);
+    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+      attribution: '© OpenStreetMap contributors'
+    }).addTo(map);
+
+    // Capa para mostrar las rutas (polilíneas)
+    var rutasLayer = new L.FeatureGroup();
+    map.addLayer(rutasLayer);
+
+    // Recuperar rutas guardadas (administrador2) desde localStorage
+    var rutasGuardadas = JSON.parse(localStorage.getItem("rutasPecerasAdmin2")) || [];
+
+    // Objeto para almacenar la ruta nueva en edición
+    var rutaActual = {
+      name: "",
+      color: "",
+      coordinates: [],
+      peceras: []
+    };
+
+    // Función para poblar el selector con rutas existentes
+    function populateRouteSelector() {
+      var selector = document.getElementById("routeSelector");
+      selector.innerHTML = '<option value="new">-- Nueva Ruta --</option>';
+      rutasGuardadas.forEach(function(ruta, index) {
+        var option = document.createElement("option");
+        option.value = index;
+        option.text = ruta.name;
+        selector.appendChild(option);
+      });
+    }
+    populateRouteSelector();
+
+    // Función para renderizar las rutas y sus peceras en el mapa
+    function renderRoutes() {
+      rutasLayer.clearLayers();
+      // Remover marcadores antiguos (peceras)
+      map.eachLayer(function(layer) {
+        if (layer.options && layer.options.icon && layer.options.icon.options && layer.options.icon.options.iconUrl) {
+          map.removeLayer(layer);
+        }
+      });
+      rutasGuardadas.forEach(function(ruta) {
+        var polyline = L.polyline(ruta.coordinates, { color: ruta.color, weight: 5 });
+        polyline.bindPopup(<b>Ruta:</b> ${ruta.name}<br><b>Peceras:</b> ${ruta.peceras.map(p => p.name).join(", ")});
+        rutasLayer.addLayer(polyline);
+        // Agregar marcadores para cada pecera
+        ruta.peceras.forEach(function(pecera) {
+          var marker = L.marker(pecera.coordinates, {
+            icon: L.icon({
+              iconUrl: 'https://cdn-icons-png.flaticon.com/512/167/167755.png',
+              iconSize: [32, 32],
+              iconAnchor: [16, 32]
+            })
+          }).addTo(map);
+          marker.bindPopup(<b>Pecera:</b> ${pecera.name}<br><b>Conductor:</b> ${pecera.conductor});
+        });
+      });
+    }
+    renderRoutes();
+
+    // Inicializar Leaflet.Draw (se usará para trazar nuevas rutas)
+    var drawControl = new L.Control.Draw({
+      edit: { featureGroup: rutasLayer },
+      draw: { polyline: true, polygon: false, circle: false, marker: false, rectangle: false }
+    });
+    map.addControl(drawControl);
+
+    // Al terminar de trazar una nueva ruta (solo si "Nueva Ruta" está seleccionada)
+    map.on(L.Draw.Event.CREATED, function(e) {
+      var selector = document.getElementById("routeSelector");
+      if (selector.value !== "new") {
+        alert("No puede trazar una nueva ruta cuando ha seleccionado una ruta existente.");
+        return;
+      }
+      var layer = e.layer;
+      var color = document.getElementById("routeColor").value;
+      var name = document.getElementById("routeName").value.trim() || "Ruta sin nombre";
+
+      layer.setStyle({ color: color, weight: 5 });
+      layer.bindPopup(<b>Ruta:</b> ${name}<br><b>Peceras:</b> ${rutaActual.peceras.map(p => p.name).join(", ")});
+      rutasLayer.addLayer(layer);
+
+      // Guardar las coordenadas de la ruta trazada
+      rutaActual.coordinates = layer.getLatLngs();
+    });
+
+    // Agregar Pecera: se espera que el usuario haga clic en el mapa para elegir la ubicación
+    document.getElementById("addPeceraBtn").addEventListener("click", function() {
+      var peceraName = document.getElementById("peceraName").value.trim();
+      var conductorName = document.getElementById("conductorName").value.trim();
+      if (!peceraName || !conductorName) {
+        alert("Por favor, ingresa el nombre de la pecera y del conductor.");
+        return;
+      }
+      alert("Haga clic en el mapa para seleccionar la ubicación de la pecera.");
+      map.once('click', function(e) {
+        var pecera = {
+          name: peceraName,
+          conductor: conductorName,
+          coordinates: [e.latlng.lat, e.latlng.lng]
+        };
+        var selector = document.getElementById("routeSelector");
+        if (selector.value === "new") {
+          // Si se está creando una nueva ruta, se añade la pecera al objeto rutaActual
+          rutaActual.peceras.push(pecera);
+        } else {
+          // Si se ha seleccionado una ruta existente, se añade la pecera a esa ruta
+          var routeIndex = parseInt(selector.value);
+          rutasGuardadas[routeIndex].peceras.push(pecera);
+          localStorage.setItem("rutasPecerasAdmin2", JSON.stringify(rutasGuardadas));
+          populateRouteSelector();
+          renderRoutes();
+        }
+        // Mostrar la pecera como marcador en el mapa
+        var marker = L.marker(pecera.coordinates, {
+          icon: L.icon({
+            iconUrl: 'https://cdn-icons-png.flaticon.com/512/167/167755.png',
+            iconSize: [32, 32],
+            iconAnchor: [16, 32]
+          })
+        }).addTo(map);
+        marker.bindPopup(<b>Pecera:</b> ${pecera.name}<br><b>Conductor:</b> ${pecera.conductor});
+        alert("Pecera agregada correctamente.");
+      });
+    });
+
+    // Guardar o actualizar la ruta
+    document.getElementById("saveBtn").addEventListener("click", function() {
+      var selector = document.getElementById("routeSelector");
+      if (selector.value === "new") {
+        // Guardar nueva ruta
+        var routeName = document.getElementById("routeName").value.trim();
+        var routeColor = document.getElementById("routeColor").value;
+        if (!routeName || rutaActual.coordinates.length === 0) {
+          alert("Por favor, traza una ruta y proporciona un nombre.");
+          return;
+        }
+        rutaActual.name = routeName;
+        rutaActual.color = routeColor;
+        rutasGuardadas.push(rutaActual);
+        localStorage.setItem("rutasPecerasAdmin2", JSON.stringify(rutasGuardadas));
+        alert("Ruta guardada correctamente.");
+        // Reiniciar objeto para nueva ruta
+        rutaActual = { name: "", color: "", coordinates: [], peceras: [] };
+        populateRouteSelector();
+        renderRoutes();
+      } else {
+        // Si se seleccionó una ruta existente, ya se actualizaron los cambios al agregar peceras
+        alert("Ruta actualizada correctamente.");
+        renderRoutes();
+      }
+    });
+
+    // Borrar todas las rutas (pregunta de confirmación)
+    document.getElementById("clearBtn").addEventListener("click", function() {
+      if (confirm("¿Está seguro de borrar todas las rutas?")) {
+        localStorage.removeItem("rutasPecerasAdmin2");
+        rutasGuardadas = [];
+        rutaActual = { name: "", color: "", coordinates: [], peceras: [] };
+        populateRouteSelector();
+        rutasLayer.clearLayers();
+        // Eliminar marcadores de peceras del mapa
+        map.eachLayer(function(layer) {
+          if (layer.options && layer.options.icon && layer.options.icon.options && layer.options.icon.options.iconUrl) {
+            map.removeLayer(layer);
+          }
+        });
+        alert("Todas las rutas han sido eliminadas.");
+      }
+    });
+  </script>
+</body>
+</html>
