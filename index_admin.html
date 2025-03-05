@@ -3,15 +3,10 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Administrador - Editar Rutas</title>
-
-    <!-- Leaflet y Leaflet Draw (para edición de rutas) -->
+    <title>Administrador1 - Editar Rutas</title>
+    <!-- Leaflet y Leaflet Draw -->
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.7.1/dist/leaflet.css" />
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet.draw/1.0.4/leaflet.draw.css" />
-
-    <script src="https://unpkg.com/leaflet@1.7.1/dist/leaflet.js"></script>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet.draw/1.0.4/leaflet.draw.js"></script>
-
     <style>
         body { margin: 0; font-family: Arial, sans-serif; }
         #map { height: 100vh; }
@@ -20,15 +15,31 @@
             top: 10px;
             left: 10px;
             background: white;
-            padding: 10px;
+            padding: 15px;
             z-index: 1000;
-            border-radius: 5px;
+            border-radius: 10px;
             box-shadow: 0px 0px 10px rgba(0, 0, 0, 0.3);
+            max-width: 300px;
         }
+        #controls label { display: block; margin: 5px 0; font-weight: bold; }
+        #controls input, #controls button {
+            width: 100%;
+            padding: 10px;
+            margin: 5px 0;
+            border: 1px solid #ccc;
+            border-radius: 5px;
+        }
+        #controls button {
+            background-color: #004AAD;
+            color: white;
+            border: none;
+            cursor: pointer;
+            transition: background-color 0.3s ease;
+        }
+        #controls button:hover { background-color: #002D6B; }
     </style>
 </head>
 <body>
-
     <div id="controls">
         <label>Nombre de la Ruta:</label>
         <input type="text" id="routeName" placeholder="Ej. Ruta Centro">
@@ -37,25 +48,42 @@
         <button id="saveBtn">Guardar Rutas</button>
         <button id="clearBtn">Borrar Rutas</button>
     </div>
-
     <div id="map"></div>
 
+    <script src="https://unpkg.com/leaflet@1.7.1/dist/leaflet.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet.draw/1.0.4/leaflet.draw.js"></script>
     <script>
+        // Inicializar el mapa
         var map = L.map('map').setView([25.8797, -97.5046], 13);
-
         L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
             attribution: '© OpenStreetMap contributors'
         }).addTo(map);
 
+        // Capa para almacenar las rutas dibujadas
         var drawnItems = new L.FeatureGroup();
         map.addLayer(drawnItems);
 
+        // Cargar rutas guardadas desde localStorage
+        function cargarRutas() {
+            var rutasGuardadas = JSON.parse(localStorage.getItem("rutasPeceras")) || [];
+            rutasGuardadas.forEach(function (ruta) {
+                var polyline = L.polyline(ruta.coordinates, { color: ruta.color, weight: 5 });
+                polyline.bindPopup(ruta.name);
+                drawnItems.addLayer(polyline);
+            });
+        }
+
+        // Cargar rutas al iniciar la página
+        cargarRutas();
+
+        // Habilitar herramientas de dibujo
         var drawControl = new L.Control.Draw({
             edit: { featureGroup: drawnItems },
             draw: { polyline: true, polygon: false, circle: false, marker: false, rectangle: false }
         });
         map.addControl(drawControl);
 
+        // Evento cuando se crea una nueva ruta
         map.on(L.Draw.Event.CREATED, function (e) {
             var layer = e.layer;
             var color = document.getElementById("routeColor").value;
@@ -64,9 +92,13 @@
             layer.setStyle({ color: color, weight: 5 });
             layer.bindPopup(name);
             drawnItems.addLayer(layer);
+
+            // Guardar rutas en localStorage
+            guardarRutas();
         });
 
-        document.getElementById("saveBtn").addEventListener("click", function () {
+        // Función para guardar rutas en localStorage
+        function guardarRutas() {
             var data = [];
             drawnItems.eachLayer(function (layer) {
                 data.push({
@@ -77,16 +109,17 @@
             });
             localStorage.setItem("rutasPeceras", JSON.stringify(data));
             alert("Rutas guardadas correctamente.");
-        });
+        }
 
+        // Botón para guardar rutas
+        document.getElementById("saveBtn").addEventListener("click", guardarRutas);
+
+        // Botón para borrar todas las rutas
         document.getElementById("clearBtn").addEventListener("click", function () {
             localStorage.removeItem("rutasPeceras");
             drawnItems.clearLayers();
             alert("Todas las rutas han sido eliminadas.");
         });
-
     </script>
-
 </body>
 </html>
-
