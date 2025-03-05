@@ -3,108 +3,139 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Rutas de Matamoros</title>
-
-    <!-- Leaflet para Mapas -->
+    <title>Usuario - Rutas de Matamoros</title>
+    <!-- Leaflet -->
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.7.1/dist/leaflet.css" />
-    <script src="https://unpkg.com/leaflet@1.7.1/dist/leaflet.js"></script>
-    <script src="https://rawgit.com/ewoken/Leaflet.MovingMarker/master/MovingMarker.js"></script>
-
     <style>
-        body { margin: 0; font-family: Arial, sans-serif; display: flex; flex-direction: column; height: 100vh; }
-        header { background-color: #333; color: #fff; padding: 1em 0; text-align: center; width: 100%; margin: 0; }
-        #map { flex: 1; }
+        body { margin: 0; font-family: Arial, sans-serif; display: flex; flex-direction: column; height: 100vh; background-color: #f0f2f5; }
 
-        /* Menú Lateral */
+        /* Encabezado */
+        header {
+            background: #004AAD;
+            color: white;
+            padding: 15px;
+            text-align: center;
+            box-shadow: 0px 4px 6px rgba(0, 0, 0, 0.1);
+        }
+        header h1 {
+            margin: 0;
+            font-size: 24px;
+            font-weight: bold;
+        }
+
+        /* Contenedor de botones */
+        .button-container {
+            display: flex;
+            justify-content: center;
+            gap: 10px;
+            margin-top: 10px;
+        }
+        .button-container button {
+            background: #007BFF;
+            color: white;
+            border: none;
+            padding: 12px 25px;
+            border-radius: 25px;
+            cursor: pointer;
+            font-size: 16px;
+            font-weight: bold;
+            transition: all 0.3s ease;
+            box-shadow: 2px 4px 10px rgba(0, 0, 0, 0.2);
+        }
+        .button-container button:hover {
+            background: #0056b3;
+            transform: scale(1.05);
+        }
+
+        /* Menú lateral */
         #menu {
-            position: fixed;
-            left: -260px;
-            top: 0;
             width: 250px;
-            height: 100vh;
             background: #004AAD;
             color: white;
             padding: 15px;
             overflow-y: auto;
-            transition: left 0.3s;
-            z-index: 1000;
+            border-top-right-radius: 15px;
+            border-bottom-right-radius: 15px;
+            box-shadow: 4px 0 10px rgba(0, 0, 0, 0.2);
         }
-        #menu.open { left: 0; }
-        #menu h1 { margin: 0 0 10px; font-size: 20px; text-align: center; }
+        #menu h2 {
+            margin: 0 0 10px;
+            font-size: 20px;
+            text-align: center;
+        }
         .btn {
             background: white;
             color: #004AAD;
             border: none;
-            padding: 10px;
+            padding: 12px;
             cursor: pointer;
-            border-radius: 5px;
+            border-radius: 20px;
             font-size: 16px;
             width: 100%;
             margin-bottom: 5px;
-            text-align: left;
+            text-align: center;
+            font-weight: bold;
             transition: 0.3s;
+            box-shadow: 2px 4px 8px rgba(0, 0, 0, 0.2);
         }
-        .btn:hover { background: #002D6B; color: white; }
-
-        /* Botón Menú en Móvil */
-        #menu-toggle {
-            position: absolute;
-            top: 15px;
-            left: 15px;
-            background: #004AAD;
+        .btn:hover {
+            background: #002D6B;
             color: white;
-            border: none;
-            padding: 10px;
-            cursor: pointer;
-            border-radius: 5px;
-            font-size: 16px;
-            z-index: 1100;
+            transform: scale(1.05);
         }
 
-        /* En pantallas grandes, el menú no se oculta */
-        @media (min-width: 768px) {
-            #menu { left: 0; }
-            #menu-toggle { display: none; }
+        /* Mapa */
+        #map { flex: 1; height: 100%; border-radius: 10px; }
+
+        /* Diseño responsivo */
+        @media (max-width: 768px) {
+            #menu {
+                width: 100%;
+                height: auto;
+                position: static;
+            }
+            .button-container {
+                flex-direction: column;
+                align-items: center;
+            }
         }
     </style>
 </head>
 <body>
-
+    <!-- Encabezado -->
     <header>
-        <h1>Rutas de Peceras en Matamoros</h1>
-        <p>Viaja rápido y cómodo en tu ciudad.</p>
+        <h1>🚌 Rutas de Matamoros</h1>
+        <div class="button-container">
+            <button onclick="window.location.href = 'tiempo_real.html';">En Tiempo Real</button>
+            <button onclick="window.location.href = 'horarios.html';">Horarios</button>
+        </div>
     </header>
 
-    <!-- Botón para abrir/cerrar el menú en móvil -->
-    <button id="menu-toggle">☰ Menú</button>
+    <!-- Contenedor principal -->
+    <div style="display: flex; flex: 1;">
+        <!-- Menú lateral -->
+        <div id="menu">
+            <h2>📌 Rutas Disponibles</h2>
+            <div id="listaRutas"></div>
+        </div>
 
-    <!-- Menú Lateral -->
-    <div id="menu">
-        <h1>📌 Rutas:</h1>
-        <div id="listaRutas"></div>
+        <!-- Mapa -->
+        <div id="map"></div>
     </div>
 
-    <!-- Contenedor del Mapa -->
-    <div id="map"></div>
-
+    <!-- Leaflet -->
+    <script src="https://unpkg.com/leaflet@1.7.1/dist/leaflet.js"></script>
     <script>
+        // Inicializar el mapa
         var map = L.map('map').setView([25.8797, -97.5046], 13);
-
         L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
             attribution: '© OpenStreetMap contributors'
         }).addTo(map);
 
+        // Cargar rutas guardadas desde localStorage
         var rutas = JSON.parse(localStorage.getItem("rutasPeceras")) || [];
         var rutasLayers = [];
         var listaRutas = document.getElementById("listaRutas");
-
-        // Crear un icono de autobús
-        var busIcon = L.icon({
-            iconUrl: 'https://example.com/bus.png',
-            iconSize: [32, 32],
-            iconAnchor: [16, 16],
-            popupAnchor: [0, -16]
-        });
 
         rutas.forEach((ruta, index) => {
             var polyline = L.polyline(ruta.coordinates, { color: ruta.color, weight: 5 }).addTo(map);
@@ -120,22 +151,9 @@
             btnRuta.onclick = function () {
                 map.fitBounds(polyline.getBounds());
                 polyline.openPopup();
-                if (window.innerWidth < 768) { toggleMenu(); } // Cierra el menú en móvil
             };
             listaRutas.appendChild(btnRuta);
-
-            // Crear un marcador de autobús y animarlo a lo largo de la ruta
-            var busMarker = L.Marker.movingMarker(ruta.coordinates, [3000 * ruta.coordinates.length], {icon: busIcon}).addTo(map);
-            busMarker.start();
         });
-
-        // Función para abrir/cerrar el menú en móvil
-        function toggleMenu() {
-            document.getElementById("menu").classList.toggle("open");
-        }
-
-        document.getElementById("menu-toggle").addEventListener("click", toggleMenu);
     </script>
-
 </body>
 </html>
