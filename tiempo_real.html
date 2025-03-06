@@ -35,7 +35,7 @@
     rutasGuardadas.forEach(function(ruta) {
       // Dibujar la ruta con el color especificado
       var polyline = L.polyline(ruta.coordinates, { color: ruta.color, weight: 5 }).addTo(map);
-      polyline.bindPopup(📍 <b>Ruta:</b> ${ruta.name}<br>🚌 <b>Peceras:</b> ${ruta.peceras.map(p => p.name).join(", ")});
+      polyline.bindPopup('<b>Ruta:</b> ${ruta.name}<br><b>Peceras:</b> ${ruta.peceras.map(p => p.name).join(", ")}');
 
       // Obtener las coordenadas de la ruta
       var path = polyline.getLatLngs();
@@ -54,7 +54,7 @@
         // Distribuir los puntos de inicio a lo largo del camino
         var startIndex = Math.floor(idx * (path.length / pecerasSimuladas.length));
         var marker = L.marker(path[startIndex], { icon: busIcon }).addTo(map);
-        marker.bindPopup(🚌 <b>Pecera:</b> ${pecera.name}<br>👨‍✈️ <b>Conductor:</b> ${pecera.conductor});
+        marker.bindPopup('<b>Pecera:</b> ${pecera.name}<br><b>Conductor:</b> ${pecera.conductor}');
 
         // Simular el movimiento: cada 2 segundos se actualiza la posición
         (function(marker, currentIndex) {
@@ -71,3 +71,4 @@
   </script>
 </body>
 </html>
+
